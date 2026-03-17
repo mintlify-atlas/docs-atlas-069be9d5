@@ -1,0 +1,153 @@
+---
+title: SDK
+description: Choose between the Claude SDK and the OpenCode SDK, and learn when to use each.
+---
+
+Reverse API Engineer supports three SDK backends for running the reverse engineering step. The active SDK is shown on startup next to the current model.
+
+## SDK options
+
+<Tabs>
+  <Tab title="Claude SDK (default)">
+    Direct integration with the Anthropic API via `claude-agent-sdk`.
+
+    - Default SDK, works with no extra setup beyond an `ANTHROPIC_API_KEY`
+    - Uses the model set in `claude_code_model` (default: `claude-sonnet-4-6`)
+    - Runs the engineer as a subprocess; no local server required
+
+    ```json
+    {
+        "sdk": "claude",
+        "claude_code_model": "claude-sonnet-4-6"
+    }
+    ```
+  </Tab>
+  <Tab title="OpenCode SDK">
+    HTTP calls to a locally running OpenCode server at `http://127.0.0.1:4096`.
+
+    - Lets you use any model that OpenCode supports, including Gemini and other providers
+    - Requires OpenCode to be running before you start a session
+    - Uses `opencode_model` and `opencode_provider` config fields
+
+    ```json
+    {
+        "sdk": "opencode",
+        "opencode_model": "claude-opus-4-6",
+        "opencode_provider": "anthropic"
+    }
+    ```
+  </Tab>
+  <Tab title="Copilot SDK">
+    Integration via the GitHub Copilot API.
+
+    - Uses GPT models billed through your GitHub Copilot subscription (cost is $0 with an active subscription)
+    - Uses the model set in `copilot_model` (default: `gpt-5`)
+
+    ```json
+    {
+        "sdk": "copilot",
+        "copilot_model": "gpt-5"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## When to use each SDK
+
+| Use case | Recommended SDK |
+|---|---|
+| Getting started, default workflow | `claude` |
+| Need Gemini or non-Anthropic models | `opencode` |
+| Already running OpenCode locally | `opencode` |
+| Have a GitHub Copilot subscription | `copilot` |
+| Minimal dependencies, direct API access | `claude` |
+
+## Switching SDKs
+
+<Tabs>
+  <Tab title="/settings command">
+    ```
+    /settings
+    → SDK
+    → claude    # Direct Anthropic API
+    → opencode  # Local OpenCode server
+    → copilot   # GitHub Copilot
+    ```
+  </Tab>
+  <Tab title="config.json">
+    ```json
+    {
+        "sdk": "opencode"
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Running OpenCode locally
+
+To use the OpenCode SDK, start the OpenCode server before launching reverse-api-engineer:
+
+<Steps>
+  <Step title="Install OpenCode">
+    Follow the [OpenCode installation guide](https://opencode.ai/docs). OpenCode must be installed and available in your `PATH`.
+  </Step>
+  <Step title="Start the OpenCode server">
+    ```bash
+    opencode serve
+    ```
+
+    The server listens on `http://127.0.0.1:4096` by default.
+  </Step>
+  <Step title="Configure reverse-api-engineer">
+    Set `sdk` to `"opencode"` and choose your model and provider:
+
+    ```json
+    {
+        "sdk": "opencode",
+        "opencode_model": "claude-opus-4-6",
+        "opencode_provider": "anthropic"
+    }
+    ```
+  </Step>
+  <Step title="Launch the CLI">
+    ```bash
+    reverse-api-engineer
+    ```
+
+    The banner will show `sdk opencode | model claude-opus-4-6`.
+  </Step>
+</Steps>
+
+<Warning>If the OpenCode server is not running when you start a session with `sdk: "opencode"`, the reverse engineering step will fail. Always start `opencode serve` first.</Warning>
+
+### Debug logging for OpenCode
+
+Set `OPENCODE_DEBUG=1` to print detailed HTTP request and response logs from the OpenCode SDK client:
+
+```bash
+OPENCODE_DEBUG=1 reverse-api-engineer
+```
+
+This is useful for diagnosing connection issues or unexpected model behavior when the server is running but responses are incorrect.
+
+## OpenCode model configuration
+
+When `sdk` is `"opencode"`, the `opencode_model` and `opencode_provider` fields are sent to the local server on each request.
+
+<ParamField path="body.opencode_model" type="string" default="claude-opus-4-6">
+  Model identifier passed to the OpenCode server. Accepts any model string that OpenCode supports. For Google models, use the Gemini model IDs such as `gemini-3-flash`.
+</ParamField>
+
+<ParamField path="body.opencode_provider" type="string" default="anthropic">
+  Provider name passed to the OpenCode server alongside the model. Common values: `"anthropic"`, `"openai"`, `"google"`.
+</ParamField>
+
+To use Gemini models through OpenCode:
+
+```json
+{
+    "sdk": "opencode",
+    "opencode_model": "gemini-3-pro",
+    "opencode_provider": "google"
+}
+```

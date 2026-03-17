@@ -1,0 +1,162 @@
+---
+title: Agent mode
+description: Let an AI agent browse a site autonomously, then generate an API client from the captured traffic.
+---
+
+Agent mode replaces the manual browser session with a fully autonomous AI agent. You describe the task, the agent navigates and interacts with the site on its own, and the captured traffic is handed to Claude for API generation.
+
+## Launch agent mode
+
+Agent mode is the default when you start the REPL:
+
+```bash
+reverse-api-engineer
+# Prompt reads: [agent] >
+```
+
+Or use the subcommand directly:
+
+```bash
+reverse-api-engineer agent --prompt "Go to github.com/trending and capture the top 10 trending repos"
+```
+
+## How it works
+
+<Steps>
+  <Step title="Describe the task">
+    Type a natural language instruction. The agent interprets this as its goal.
+
+    ```
+    [agent] > Go to amazon.com, search for mechanical keyboards, and capture the product search API
+    ```
+
+    Press **Ctrl+R** to fill the prompt with a random task suggestion from a built-in list of 20 examples.
+  </Step>
+  <Step title="Agent navigates autonomously">
+    The agent opens a browser, navigates to the target site, and performs the requested interactions. All network traffic is recorded to a HAR file.
+  </Step>
+  <Step title="API client is generated">
+    Once the agent finishes (or times out), Claude analyzes the captured traffic and writes the API client.
+  </Step>
+</Steps>
+
+## Agent providers
+
+Three providers are available, each using a different browser automation backend.
+
+<Tabs>
+  <Tab title="auto (default)">
+    The `auto` provider uses an MCP-based browser controlled by the Claude Agent SDK. It combines browser control and real-time reverse engineering in a single unified workflow.
+
+    **No additional installation required** beyond the base package.
+
+    ```bash
+    # Base install is sufficient
+    uv tool install reverse-api-engineer
+    ```
+
+    The `auto` provider works with both the Claude SDK (default) and the OpenCode SDK. Switch the SDK in `/settings` → "SDK".
+
+    <Tip>
+      `auto` is the recommended provider for most users. It requires only `ANTHROPIC_API_KEY` and has the tightest integration with the reverse engineering pipeline.
+    </Tip>
+  </Tab>
+  <Tab title="browser-use">
+    The `browser-use` provider uses the [browser-use](https://github.com/browser-use/browser-use) library. It supports multiple LLM backends and must be installed separately from a specific git commit that includes HAR recording support.
+
+    ```bash
+    uv tool install 'reverse-api-engineer[agent]' \
+      --with 'browser-use @ git+https://github.com/browser-use/browser-use.git@49a345fb19e9f12befc5cc1658e0033873892455'
+    ```
+
+    **Supported models:**
+
+    | Model string | Required env var |
+    |---|---|
+    | `bu-llm` (default) | `BROWSER_USE_API_KEY` |
+    | `openai/gpt-4` | `OPENAI_API_KEY` |
+    | `openai/gpt-3.5-turbo` | `OPENAI_API_KEY` |
+    | `google/gemini-pro` | `GOOGLE_API_KEY` |
+    | `google/gemini-1.5-pro` | `GOOGLE_API_KEY` |
+
+    Change the browser-use model in `/settings` → "Browser-Use Model" (format: `bu-llm` or `provider/model`).
+  </Tab>
+  <Tab title="stagehand">
+    The `stagehand` provider uses [Stagehand](https://github.com/browserbase/stagehand) with Computer Use models. Only OpenAI and Anthropic Computer Use models are supported.
+
+    ```bash
+    uv tool install 'reverse-api-engineer[agent]'
+    ```
+
+    **Supported models:**
+
+    | Model string | Required env var |
+    |---|---|
+    | `openai/computer-use-preview-2025-03-11` (default) | `OPENAI_API_KEY` |
+    | `anthropic/claude-sonnet-4-6-20260301` | `ANTHROPIC_API_KEY` |
+    | `anthropic/claude-haiku-4-5-20251001` | `ANTHROPIC_API_KEY` |
+    | `anthropic/claude-opus-4-6-20260301` | `ANTHROPIC_API_KEY` |
+
+    Change the stagehand model in `/settings` → "Stagehand Model".
+  </Tab>
+</Tabs>
+
+## Switching providers
+
+Open `/settings` from within the REPL and select **Agent Provider**:
+
+```
+/settings
+> Agent Provider
+  > auto
+    browser-use
+    stagehand
+```
+
+Or edit `~/.reverse-api/config.json` directly:
+
+```json
+{
+  "agent_provider": "browser-use",
+  "browser_use_model": "openai/gpt-4"
+}
+```
+
+## Setting API keys
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."   # auto provider (Claude SDK) or stagehand anthropic
+export BROWSER_USE_API_KEY="..."        # browser-use bu-llm model
+export OPENAI_API_KEY="sk-..."          # browser-use openai/* or stagehand openai/*
+export GOOGLE_API_KEY="AIza..."         # browser-use google/*
+```
+
+## The `@record-only` tag
+
+Capture traffic without running AI generation:
+
+```
+[agent] > @record-only navigate checkout flow on example.com
+```
+
+The run ID is printed after capture. Pass it to engineer mode later:
+
+```
+[engineer] > @id <run_id> generate the checkout API client
+```
+
+<Warning>
+  Agent mode in agent mode requires a non-empty prompt when using `@record-only`. The agent needs instructions to know where to navigate.
+</Warning>
+
+## Ctrl+R — random task suggestions
+
+Press **Ctrl+R** while in agent mode to fill the prompt with a random task from the built-in suggestion list. Press it multiple times to cycle through different ideas:
+
+```
+Go to github.com/trending and capture the top 10 trending repos' API calls
+Navigate to news.ycombinator.com, browse the front page and capture API interactions
+Go to weather.com, search for New York weather and capture the forecast API
+```
+
+This is useful for exploring what the tool can do or for testing against new sites.

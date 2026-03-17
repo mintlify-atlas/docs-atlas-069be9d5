@@ -1,0 +1,209 @@
+---
+title: "Tags"
+description: "Special @ prefixed tags that modify capture and generation behavior in the interactive REPL."
+---
+
+Tags are typed directly into the REPL prompt to change what happens during a session. Each tag is stripped from the prompt before it reaches the AI — the cleaned text is used as the task description.
+
+<Note>
+Tags are available in the interactive REPL only. They are not supported as CLI flags on subcommands. Use `--no-engineer` on `manual` and `agent` subcommands for the equivalent of `@record-only`.
+</Note>
+
+---
+
+## Manual and agent mode tags
+
+These tags work when the REPL is in `manual` or `agent` mode.
+
+### `@record-only`
+
+Record the HAR file without running AI code generation. Use this when you want to capture traffic now and engineer it later.
+
+```
+@record-only [task description]
+```
+
+After recording, the REPL prints the run ID and shows you the engineer command to use when you're ready:
+
+```
+ > recording complete
+ > run_id: abc123def456
+ > use @id abc123def456 <prompt> to engineer later
+```
+
+<CodeGroup>
+
+```bash manual mode
+@record-only navigate the checkout flow
+```
+
+```bash agent mode
+@record-only capture search results on amazon.com
+```
+
+</CodeGroup>
+
+<Tip>
+In agent mode, `@record-only` requires a non-empty task description after the tag. The agent needs instructions to know where to navigate.
+</Tip>
+
+---
+
+### `@codegen`
+
+Record browser actions (clicks, form fills, navigation) and generate a Playwright automation script instead of an API client. The script is saved to `~/.reverse-api/runs/scripts/{run_id}/automation.py`.
+
+```
+@codegen [task description]
+```
+
+<CodeGroup>
+
+```bash record and generate playwright script
+@codegen navigate to google and search for openai
+```
+
+```bash with a longer task
+@codegen fill out the signup form with test credentials
+```
+
+</CodeGroup>
+
+The generated script includes:
+- `playwright` in `requirements.txt`
+- Recorded steps as `page.goto()`, `page.click()`, `page.fill()` calls
+- A `start_url` derived from the first navigation action
+
+---
+
+## Engineer mode tags
+
+These tags work when the REPL is in `engineer` mode. They let you target specific runs and control how generation behaves.
+
+### `@id <run_id>`
+
+Switch context to a specific run. Subsequent prompts in engineer mode operate against this run's HAR file.
+
+```
+@id <run_id>
+```
+
+<CodeGroup>
+
+```bash switch to a run
+@id abc123def456
+```
+
+</CodeGroup>
+
+---
+
+### `@id <run_id> <prompt>`
+
+Re-engineer a specific run with new instructions. The AI appends your prompt as additional instructions on top of any previously generated code.
+
+```
+@id <run_id> <prompt>
+```
+
+<CodeGroup>
+
+```bash re-engineer with new instructions
+@id abc123def456 extract the user profile endpoint
+```
+
+```bash refine existing output
+@id abc123def456 add retry logic and better error messages
+```
+
+</CodeGroup>
+
+---
+
+### `@id <run_id> --fresh <prompt>`
+
+Start generation from scratch for a specific run, ignoring any previously generated scripts. The `--fresh` flag tells the AI to treat this as a new task.
+
+```
+@id <run_id> --fresh <prompt>
+```
+
+<CodeGroup>
+
+```bash restart analysis
+@id abc123def456 --fresh extract only the authentication flow
+```
+
+```bash change approach entirely
+@id abc123def456 --fresh generate TypeScript client instead
+```
+
+</CodeGroup>
+
+---
+
+### `@docs`
+
+Generate an OpenAPI specification from the latest run's captured traffic. The spec is saved to `~/.reverse-api/runs/docs/{run_id}/`.
+
+```
+@docs
+```
+
+<CodeGroup>
+
+```bash generate docs for latest run
+@docs
+```
+
+</CodeGroup>
+
+Requires the latest run to have a captured HAR file (`recording.har`). If no HAR exists, an error is shown.
+
+---
+
+### `@id <run_id> @docs`
+
+Generate an OpenAPI specification for a specific run.
+
+```
+@id <run_id> @docs
+```
+
+<CodeGroup>
+
+```bash generate docs for a specific run
+@id abc123def456 @docs
+```
+
+```bash generate docs with additional prompt
+@id abc123def456 @docs include all authentication endpoints
+```
+
+</CodeGroup>
+
+---
+
+## Tag autocomplete
+
+The REPL provides inline autocomplete for all tags. Start typing `@` and press `Tab` to see available tags with descriptions. For `@id`, run IDs from your history autocomplete automatically after a space.
+
+```
+[engineer] > @         ← press Tab to see @id, @docs, @help
+[engineer] > @id       ← press Space then Tab to autocomplete run IDs
+```
+
+---
+
+## Tag reference summary
+
+| Tag | Mode | Description |
+|-----|------|-------------|
+| `@record-only` | manual, agent | Record HAR only, skip AI generation |
+| `@codegen` | manual | Record actions and generate Playwright script |
+| `@id <run_id>` | engineer | Switch context to a specific run |
+| `@id <run_id> <prompt>` | engineer | Re-engineer a run with new instructions |
+| `@id <run_id> --fresh <prompt>` | engineer | Re-engineer from scratch |
+| `@docs` | engineer | Generate OpenAPI spec for latest run |
+| `@id <run_id> @docs` | engineer | Generate OpenAPI spec for a specific run |
+| `@help` | all | Show mode-specific help |

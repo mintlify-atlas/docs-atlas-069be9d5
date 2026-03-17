@@ -1,0 +1,135 @@
+---
+title: Configuration overview
+description: How reverse-api-engineer stores and manages its settings, and a complete reference for every config field.
+---
+
+All settings are stored in a single JSON file at `~/.reverse-api/config.json`. The tool creates this file with defaults on first run. You can edit it directly or use the `/settings` command from inside the interactive CLI.
+
+## Config file location
+
+```
+~/.reverse-api/config.json
+```
+
+## Editing settings
+
+<Tabs>
+  <Tab title="/settings command">
+    Launch the CLI and type `/settings` at the prompt. A menu lets you choose which field to edit and shows the current value.
+
+    ```bash
+    reverse-api-engineer
+    # then at the prompt:
+    /settings
+    ```
+
+    Navigate with arrow keys, press Enter to select.
+  </Tab>
+  <Tab title="Edit JSON directly">
+    Open `~/.reverse-api/config.json` in any text editor. The file is reloaded on the next run.
+
+    ```bash
+    $EDITOR ~/.reverse-api/config.json
+    ```
+
+    <Warning>Invalid JSON will cause the file to be ignored and defaults to be used. Always validate after editing.</Warning>
+  </Tab>
+</Tabs>
+
+## Default configuration
+
+This is the full default `config.json` that is applied when a field is missing or the file does not exist.
+
+<CodeGroup>
+
+```json ~/.reverse-api/config.json
+{
+    "agent_provider": "auto",
+    "browser_use_model": "bu-llm",
+    "claude_code_model": "claude-sonnet-4-6",
+    "collector_model": "claude-sonnet-4-6",
+    "copilot_model": "gpt-5",
+    "opencode_model": "claude-opus-4-6",
+    "opencode_provider": "anthropic",
+    "output_dir": null,
+    "output_language": "python",
+    "real_time_sync": true,
+    "sdk": "claude",
+    "stagehand_model": "openai/computer-use-preview-2025-03-11"
+}
+```
+
+</CodeGroup>
+
+## Field reference
+
+### Agent settings
+
+<ParamField path="body.agent_provider" type="string" default="auto">
+  Which browser automation provider to use in agent mode. Accepted values: `"auto"`, `"browser-use"`, `"stagehand"`.
+
+  - `auto` — MCP-based browser with no extra install required. Works with the Claude SDK or OpenCode SDK.
+  - `browser-use` — Multi-model browser automation. Requires the `[agent]` extra and a specific git install of browser-use.
+  - `stagehand` — Computer Use models only (OpenAI and Anthropic).
+</ParamField>
+
+<ParamField path="body.browser_use_model" type="string" default="bu-llm">
+  Model used when `agent_provider` is `"browser-use"`. Accepts `"bu-llm"` (Browser-Use native LLM) or a `provider/model` string such as `"openai/gpt-4"` or `"google/gemini-pro"`.
+</ParamField>
+
+<ParamField path="body.stagehand_model" type="string" default="openai/computer-use-preview-2025-03-11">
+  Model used when `agent_provider` is `"stagehand"`. Must be a Computer Use model in `provider/model` format, e.g. `"anthropic/claude-sonnet-4-6-20260301"`.
+</ParamField>
+
+### SDK and model settings
+
+<ParamField path="body.sdk" type="string" default="claude">
+  Which SDK to use for reverse engineering. Accepted values: `"claude"`, `"opencode"`, `"copilot"`.
+
+  - `claude` — Direct Anthropic API via `claude-agent-sdk`.
+  - `opencode` — HTTP calls to a local OpenCode server at `http://127.0.0.1:4096`.
+  - `copilot` — GitHub Copilot API (uses `copilot_model`).
+</ParamField>
+
+<ParamField path="body.claude_code_model" type="string" default="claude-sonnet-4-6">
+  Model used by the Claude SDK for manual mode, agent mode, and engineer mode. Also used as the model flag when running `reverse-api-engineer manual --model`.
+</ParamField>
+
+<ParamField path="body.collector_model" type="string" default="claude-sonnet-4-6">
+  Model used in collector mode for AI-powered web data collection.
+</ParamField>
+
+<ParamField path="body.opencode_model" type="string" default="claude-opus-4-6">
+  Model passed to the local OpenCode server when `sdk` is `"opencode"`.
+</ParamField>
+
+<ParamField path="body.opencode_provider" type="string" default="anthropic">
+  Provider sent to the OpenCode server alongside `opencode_model`. Examples: `"anthropic"`, `"openai"`, `"google"`.
+</ParamField>
+
+<ParamField path="body.copilot_model" type="string" default="gpt-5">
+  Model used when `sdk` is `"copilot"`. Examples: `"gpt-5"`, `"gpt-4.1"`, `"gpt-4.1-mini"`.
+</ParamField>
+
+### Output settings
+
+<ParamField path="body.output_dir" type="string | null" default="null">
+  Custom base directory for all run output. When `null`, defaults to `~/.reverse-api/runs`. Set to an absolute path to redirect output.
+</ParamField>
+
+<ParamField path="body.output_language" type="string" default="python">
+  Programming language for generated API clients. Accepted values: `"python"`, `"javascript"`, `"typescript"`.
+</ParamField>
+
+<ParamField path="body.real_time_sync" type="boolean" default="true">
+  When `true`, generated files are written to disk as they are created during a session. When `false`, files are written only after the session completes.
+</ParamField>
+
+## Backward compatibility
+
+The config loader automatically migrates older field names:
+
+- `model` → `claude_code_model`
+- `agent_model` → `browser_use_model` (browser-use provider) or `stagehand_model` (stagehand provider)
+
+Unknown keys in `config.json` are silently ignored.

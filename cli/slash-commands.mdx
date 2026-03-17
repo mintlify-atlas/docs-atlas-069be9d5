@@ -1,0 +1,273 @@
+---
+title: "Slash commands"
+description: "Commands available inside the interactive REPL, prefixed with a forward slash."
+---
+
+Slash commands control the REPL session itself — configuring settings, browsing history, and viewing logs. Type any command at the `[mode] >` prompt and press Enter.
+
+<Tip>
+Type `/help` at any time to see all available commands listed inside the REPL.
+</Tip>
+
+---
+
+## `/settings`
+
+Opens the settings menu to configure the tool's behavior. A table of current values is shown before the interactive selector.
+
+```
+/settings
+```
+
+### Available settings
+
+<AccordionGroup>
+
+<Accordion title="Claude Code Model">
+
+The model used for API reverse engineering when using the Claude SDK.
+
+Choices:
+- `claude-sonnet-4-6` (default) — balanced performance and cost
+- `claude-opus-4-6` — highest capability for complex APIs
+- `claude-haiku-4-5` — fastest and most economical
+
+</Accordion>
+
+<Accordion title="SDK">
+
+The SDK used to run the engineering agent.
+
+Choices:
+- `claude` (default) — direct integration with Anthropic's Claude Agent SDK
+- `opencode` — uses a locally running OpenCode server at `http://127.0.0.1:4096`
+- `copilot` — uses GitHub Copilot models
+
+Changing the SDK also changes which model settings apply:
+
+| SDK | Model setting used |
+|-----|--------------------|
+| `claude` | Claude Code Model |
+| `opencode` | OpenCode Model + OpenCode Provider |
+| `copilot` | Copilot Model |
+
+</Accordion>
+
+<Accordion title="Agent Provider">
+
+The browser automation backend used in agent mode.
+
+Choices:
+- `auto` (default) — MCP-based browser automation with Claude Agent SDK. Combines browser control and real-time reverse engineering. No additional installation required.
+- `browser-use` — uses the browser-use library. Requires installation with the `[agent]` extra.
+- `stagehand` — uses Stagehand for Computer Use models (OpenAI and Anthropic).
+
+</Accordion>
+
+<Accordion title="Browser-Use Model">
+
+The model used when agent provider is `browser-use`.
+
+Format: `bu-llm` (default, requires `BROWSER_USE_API_KEY`) or `provider/model`, e.g.:
+- `openai/gpt-4` — requires `OPENAI_API_KEY`
+- `google/gemini-pro` — requires `GOOGLE_API_KEY`
+
+</Accordion>
+
+<Accordion title="Stagehand Model">
+
+The model used when agent provider is `stagehand`. Only Computer Use models are supported.
+
+Format: `provider/model`, e.g.:
+- `openai/computer-use-preview-2025-03-11` (default)
+- `anthropic/claude-sonnet-4-6-20260301`
+- `anthropic/claude-haiku-4-5-20251001`
+- `anthropic/claude-opus-4-6-20260301`
+
+</Accordion>
+
+<Accordion title="OpenCode Model">
+
+The model used when SDK is `opencode`. Accepts any model ID supported by the configured OpenCode provider, e.g. `claude-sonnet-4-6`, `claude-opus-4-6`.
+
+Default: `claude-opus-4-6`
+
+</Accordion>
+
+<Accordion title="OpenCode Provider">
+
+The provider passed to the OpenCode server when SDK is `opencode`.
+
+Examples: `anthropic`, `openai`, `google`
+
+Default: `anthropic`
+
+</Accordion>
+
+<Accordion title="Copilot Model">
+
+The model used when SDK is `copilot`.
+
+Examples: `gpt-5`, `gpt-4.1`
+
+Default: `gpt-5`
+
+</Accordion>
+
+<Accordion title="Output Language">
+
+The programming language for generated API clients.
+
+Choices:
+- `python` (default)
+- `javascript`
+- `typescript`
+
+</Accordion>
+
+<Accordion title="Output Directory">
+
+The base directory where run artifacts (HAR files, generated scripts) are stored.
+
+Default: `~/.reverse-api/runs`
+
+Set a custom path to keep runs in a specific location, e.g. a project directory.
+
+</Accordion>
+
+<Accordion title="Real-time Sync">
+
+Whether generated files are written to disk as the AI produces them.
+
+- **Enabled** (default) — files appear in real-time as generation proceeds. Useful for watching progress.
+- **Disabled** — files are written only once generation is complete.
+
+</Accordion>
+
+</AccordionGroup>
+
+Settings are saved to `~/.reverse-api/config.json` and persist across sessions.
+
+---
+
+## `/history`
+
+Shows the 15 most recent runs in an interactive list. Select a run to view its details.
+
+```
+/history
+```
+
+### Data shown in the list
+
+| Column | Description |
+|--------|-------------|
+| Run ID | The 12-character unique identifier for the run |
+| Prompt | First 40 characters of the task description |
+| Cost | Estimated cost in USD (`-` if no LLM was used) |
+
+### Run detail view
+
+Selecting a run shows a full detail table:
+
+| Field | Description |
+|-------|-------------|
+| Run ID | Full identifier |
+| Timestamp | When the run was created (ISO format) |
+| Prompt | Full task description |
+| Model | Model used |
+| Mode | Capture mode |
+| Cost | Estimated USD cost |
+| Tokens | Input and output token counts |
+
+You are also offered the option to re-run engineering (`recode?`) directly from the history view.
+
+---
+
+## `/messages <run_id>`
+
+Displays the full LLM conversation log for a specific run, including prompts, tool calls, thinking steps, and errors.
+
+```
+/messages <run_id>
+```
+
+### Arguments
+
+| Argument | Description |
+|----------|-------------|
+| `run_id` | The run ID to inspect. Tab-completion is available after typing `/messages `. |
+
+### Log entry types
+
+| Type | Display |
+|------|--------|
+| `prompt` | The prompt sent to the model (first 200 characters) |
+| `tool_start` | Name of a tool that was invoked |
+| `tool_result` | Result status: `ok` or `error` |
+| `thinking` | First 100 characters of model reasoning |
+| `error` | Error message |
+| `result` | Completion marker with the output script path |
+
+### Example
+
+```bash
+[agent] > /messages abc123def456
+
+ Message Log
+Run ID: abc123def456
+Total Messages: 47
+
+2025-03-17 14:22  prompt
+  Extract the product search API from the captured HAR file...
+2025-03-17 14:22  bash
+2025-03-17 14:22    ok
+2025-03-17 14:22  .. Analyzing request headers and response structure...
+2025-03-17 14:23  complete
+  ~/.reverse-api/runs/scripts/abc123def456/api_client.py
+```
+
+<Note>
+Message logs are stored at `~/.reverse-api/runs/messages/{run_id}.jsonl`. Each line is a JSON object with `type`, `content`, and `timestamp` fields.
+</Note>
+
+---
+
+## `/help`
+
+Prints all available slash commands and mode descriptions inside the REPL. Alias: `/commands`.
+
+```
+/help
+```
+
+Output includes:
+- All slash commands with usage examples
+- All four modes with one-line descriptions
+- A reminder to use Shift+Tab to cycle modes
+
+---
+
+## `/exit`
+
+Quits the interactive REPL. Alias: `/quit`.
+
+```
+/exit
+```
+
+You can also press `Ctrl+C` or `Ctrl+D` to exit.
+
+---
+
+## Command reference
+
+| Command | Description |
+|---------|-------------|
+| `/settings` | Configure model, SDK, agent provider, output language, output directory, and real-time sync |
+| `/history` | Browse the last 15 runs with cost and metadata |
+| `/messages <run_id>` | View the full LLM conversation log for a run |
+| `/help` | Show all commands and modes |
+| `/commands` | Alias for `/help` |
+| `/exit` | Quit the REPL |
+| `/quit` | Alias for `/exit` |

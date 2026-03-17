@@ -1,0 +1,156 @@
+---
+title: Engineer mode
+description: Re-run AI generation on a previous browser capture without opening the browser again.
+---
+
+Engineer mode lets you take a HAR file from a previous run and re-process it with Claude—without capturing browser traffic again. Use it when you want to regenerate the client with a different approach, extract additional endpoints, or improve existing code.
+
+## Launch engineer mode
+
+<Tabs>
+  <Tab title="Interactive CLI">
+    Press **Shift+Tab** from the REPL until the prompt shows `[engineer]`:
+
+    ```bash
+    reverse-api-engineer
+    # Shift+Tab until: [engineer] >
+    ```
+  </Tab>
+  <Tab title="Direct subcommand">
+    Pass the run ID directly on the command line:
+
+    ```bash
+    reverse-api-engineer engineer <run_id>
+    ```
+
+    Example:
+
+    ```bash
+    reverse-api-engineer engineer a3f7c2
+    ```
+  </Tab>
+</Tabs>
+
+## Engineer mode tags
+
+Engineer mode has its own tag syntax that controls which run is targeted and how Claude approaches the generation.
+
+### `@id` — target a specific run
+
+```
+[engineer] > @id a3f7c2
+```
+
+Switches context to run `a3f7c2`. The prompt alone (without additional text) just loads that run's context for subsequent prompts.
+
+### `@id <run_id> <prompt>` — re-engineer with instructions
+
+```
+[engineer] > @id a3f7c2 extract the user profile endpoint
+```
+
+Re-runs AI generation on run `a3f7c2` with additional instructions appended to the original prompt. Previous scripts are kept and Claude builds on top of them.
+
+### `@id <run_id> --fresh <prompt>` — start from scratch
+
+```
+[engineer] > @id a3f7c2 --fresh write a TypeScript client instead
+```
+
+Ignores any previously generated scripts and starts generation from scratch. Useful when you want a completely different implementation.
+
+### `@docs` — generate OpenAPI documentation
+
+```
+[engineer] > @docs
+```
+
+Generates an OpenAPI specification from the latest run's captured traffic instead of a code client.
+
+```
+[engineer] > @id a3f7c2 @docs
+```
+
+Generates OpenAPI documentation for a specific run. The `run_id` must have a `recording.har` file.
+
+### Implicit run (no tag)
+
+If you type a run ID directly (without `@id`), it switches context to that run:
+
+```
+[engineer] > a3f7c2
+```
+
+If you type anything that is not a run ID, it is treated as additional instructions for the current context:
+
+```
+[engineer] > improve error handling and add retry logic
+```
+
+## Tab completion
+
+In the REPL, pressing Tab after `@id ` autocompletes known run IDs with their timestamp and original prompt:
+
+```
+@id a3f▌
+       a3f7c2   [2026-03-17 14:02] Fetch Apple job listings
+       a3f891   [2026-03-16 09:44] checkout flow capture
+```
+
+## Use cases
+
+<AccordionGroup>
+  <Accordion title="Regenerate with a different approach">
+    You captured traffic but the generated client isn't quite right. Re-run with `--fresh` and more specific instructions:
+
+    ```
+    [engineer] > @id a3f7c2 --fresh focus only on the job search endpoint, add pagination support
+    ```
+  </Accordion>
+  <Accordion title="Extract more endpoints">
+    The first pass missed some endpoints. Add instructions without discarding what was already generated:
+
+    ```
+    [engineer] > @id a3f7c2 also extract the job details endpoint and the filters API
+    ```
+  </Accordion>
+  <Accordion title="Change output language">
+    Change `output_language` in `/settings`, then re-engineer:
+
+    ```
+    [engineer] > @id a3f7c2 --fresh
+    ```
+
+    Or set it in `~/.reverse-api/config.json`:
+
+    ```json
+    {
+      "output_language": "typescript"
+    }
+    ```
+  </Accordion>
+  <Accordion title="Generate API documentation">
+    Turn a capture into an OpenAPI spec instead of code:
+
+    ```
+    [engineer] > @id a3f7c2 @docs
+    ```
+
+    Output is saved to `./docs/{name}/` alongside a permanent copy in `~/.reverse-api/runs/scripts/{run_id}/`.
+  </Accordion>
+</AccordionGroup>
+
+## Output
+
+Engineer mode writes to the same locations as manual mode:
+
+| Path | Purpose |
+|------|---------|
+| `~/.reverse-api/runs/scripts/{run_id}/` | Permanent storage |
+| `./scripts/{descriptive_name}/` | Local working copy |
+
+For `@docs` mode the local copy goes to `./docs/{descriptive_name}/` instead.
+
+<Note>
+  Engineer mode requires a HAR file from a previous capture. If the run ID has no `recording.har`, the command exits with an error. Use manual or agent mode to capture traffic first.
+</Note>

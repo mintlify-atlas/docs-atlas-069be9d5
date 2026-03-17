@@ -1,0 +1,127 @@
+---
+title: Collector mode
+description: Use Claude Agent to autonomously search the web and collect structured data into JSON and CSV files.
+---
+
+Collector mode is an AI-powered data collection pipeline. Instead of capturing browser traffic, Claude Agent uses `WebFetch`, `WebSearch`, and file tools to autonomously gather structured data from the web based on a natural language prompt.
+
+## Launch collector mode
+
+Press **Shift+Tab** until the prompt shows `[collector]`:
+
+```bash
+reverse-api-engineer
+# Shift+Tab until: [collector] >
+```
+
+## How it works
+
+<Steps>
+  <Step title="Describe the data you want">
+    Type a plain-English description of what to collect.
+
+    ```
+    [collector] > Find 3 JS frameworks with name, website, GitHub stars, and description
+    ```
+  </Step>
+  <Step title="Agent collects data autonomously">
+    Claude Agent runs with access to `WebFetch`, `WebSearch`, and file tools. It searches the web, fetches pages, extracts structured data, and writes the results to disk. No browser window opens.
+  </Step>
+  <Step title="Results exported automatically">
+    When the agent finishes, the collected data is saved in JSON, CSV, and Markdown formats.
+
+    ```
+    collected/js_frameworks/
+    ├── items.json   ← structured data
+    ├── items.csv    ← spreadsheet-friendly format
+    └── README.md    ← schema and collection metadata
+    ```
+  </Step>
+</Steps>
+
+## Output formats
+
+| File | Description |
+|------|-------------|
+| `items.json` | Collected items as a JSON array. Each object shares a consistent schema inferred by the agent. |
+| `items.csv` | The same data in comma-separated format, suitable for spreadsheets and data tools. |
+| `README.md` | Collection metadata: prompt, timestamp, field descriptions, and item count. |
+
+## Output locations
+
+Every collection run writes to two places:
+
+| Path | Purpose |
+|------|---------|
+| `~/.reverse-api/runs/collected/{folder_name}/` | Permanent storage |
+| `./collected/{folder_name}/` | Local working copy |
+
+The folder name is derived from your prompt (e.g., `js_frameworks` for "Find 3 JS frameworks").
+
+## Example
+
+```bash
+$ reverse-api-engineer
+[collector] > Find 3 JS frameworks with name, website, GitHub stars, and description
+```
+
+The agent searches the web, reads relevant pages, and writes:
+
+```json
+[
+  {
+    "name": "React",
+    "website": "https://react.dev",
+    "github_stars": "224k",
+    "description": "A JavaScript library for building user interfaces"
+  },
+  {
+    "name": "Vue",
+    "website": "https://vuejs.org",
+    "github_stars": "208k",
+    "description": "The Progressive JavaScript Framework"
+  },
+  {
+    "name": "Svelte",
+    "website": "https://svelte.dev",
+    "github_stars": "79k",
+    "description": "Cybernetically enhanced web apps"
+  }
+]
+```
+
+Output saved to `./collected/js_frameworks/`.
+
+## Model configuration
+
+Collector mode uses the `collector_model` setting, which defaults to `claude-sonnet-4-6`.
+
+Change it in `/settings` → "Collector Model", or edit `~/.reverse-api/config.json`:
+
+```json
+{
+  "collector_model": "claude-sonnet-4-6"
+}
+```
+
+Supported values follow the same model naming as the main `claude_code_model` setting:
+
+| Model | Use case |
+|-------|----------|
+| `claude-sonnet-4-6` (default) | Balanced performance and cost |
+| `claude-opus-4-6` | Maximum capability for complex or large collections |
+| `claude-haiku-4-5` | Fastest and most economical for simple tasks |
+
+<Note>
+  Collector mode uses `ANTHROPIC_API_KEY` via the Claude SDK. Make sure this environment variable is set before running.
+</Note>
+
+## Tips
+
+<Tip>
+  Be specific about the fields you want. Prompts like "Find 10 YC W24 AI startups with name, website, funding amount, and one-line description" produce cleaner, more consistent schemas than vague requests.
+</Tip>
+
+- **Specify item count**: Include how many items you want (e.g., "Find 5 ...") to control output size and cost.
+- **Name your fields**: Listing the exact field names you want ("name, website, GitHub stars") helps the agent produce a consistent schema.
+- **Use `/history`**: Past collector runs appear in `/history` with cost and prompt, making it easy to re-run or reference previous collections.

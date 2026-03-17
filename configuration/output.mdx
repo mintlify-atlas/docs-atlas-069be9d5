@@ -1,0 +1,122 @@
+---
+title: Output
+description: Control where generated files are saved, which language is used, and how real-time sync behaves.
+---
+
+Every run produces HAR captures, generated scripts, and message logs. You can control the output language, the base directory, and whether files appear on disk in real time.
+
+## Output language
+
+<ParamField path="body.output_language" type="string" default="python">
+  Programming language for generated API clients. Accepted values: `"python"`, `"javascript"`, `"typescript"`.
+</ParamField>
+
+Change via `/settings` → **Output Language**, or edit `config.json`:
+
+```json
+{
+    "output_language": "typescript"
+}
+```
+
+The generated client includes type hints (Python) or TypeScript types depending on the chosen language, along with error handling and documentation comments.
+
+## Output directory
+
+<ParamField path="body.output_dir" type="string | null" default="null">
+  Base directory for all run storage. When `null`, output goes to `~/.reverse-api/runs`. Set to an absolute path to redirect storage to a different location.
+</ParamField>
+
+```json
+{
+    "output_dir": "/data/reverse-api-runs"
+}
+```
+
+<Note>The per-run subdirectory structure (`har/`, `scripts/`, `messages/`) is created inside whatever `output_dir` is set to.</Note>
+
+## Real-time sync
+
+<ParamField path="body.real_time_sync" type="boolean" default="true">
+  When `true`, files are written to disk as each file is generated during a session. When `false`, all files are written at the end of the session.
+</ParamField>
+
+- **Enabled (default):** You can open generated files in your editor while the session is still running. Useful for monitoring progress on long captures.
+- **Disabled:** Files appear only after the engineering step completes. Slightly lower disk I/O during the session.
+
+Change via `/settings` → **Real-time Sync**, or edit `config.json`:
+
+```json
+{
+    "real_time_sync": false
+}
+```
+
+## Directory structure
+
+All permanent storage lives under `~/.reverse-api/` (or your custom `output_dir`):
+
+<Tree>
+  <Tree.Folder name="~/.reverse-api" defaultOpen>
+    <Tree.File name="config.json" />
+    <Tree.File name="history.json" />
+    <Tree.Folder name="runs" defaultOpen>
+      <Tree.Folder name="har" defaultOpen>
+        <Tree.Folder name="{run_id}">
+          <Tree.File name="recording.har" />
+        </Tree.Folder>
+      </Tree.Folder>
+      <Tree.Folder name="scripts" defaultOpen>
+        <Tree.Folder name="{run_id}">
+          <Tree.File name="api_client.py" />
+          <Tree.File name="README.md" />
+          <Tree.File name="example_usage.py" />
+        </Tree.Folder>
+      </Tree.Folder>
+      <Tree.Folder name="messages">
+        <Tree.File name="{run_id}.jsonl" />
+      </Tree.Folder>
+    </Tree.Folder>
+  </Tree.Folder>
+</Tree>
+
+| Path | Contents |
+|---|---|
+| `~/.reverse-api/config.json` | User settings |
+| `~/.reverse-api/history.json` | Run history with costs and metadata |
+| `~/.reverse-api/runs/har/{run_id}/` | Captured HAR file for each run |
+| `~/.reverse-api/runs/scripts/{run_id}/` | Generated API client scripts |
+| `~/.reverse-api/runs/messages/{run_id}.jsonl` | Full LLM conversation log |
+
+## Local copies
+
+In addition to permanent storage, each completed run also writes a local copy into your current working directory:
+
+```
+./scripts/{descriptive_name}/     # Generated API client (manual and agent modes)
+./collected/{folder_name}/        # Collected data (collector mode)
+```
+
+The `descriptive_name` is generated from your task prompt (e.g., `apple_jobs_api`). The `folder_name` for collected data is similarly derived from the collection prompt.
+
+### Collector mode output
+
+Collector mode writes three files per run under `./collected/{folder_name}/` and `~/.reverse-api/runs/collected/{folder_name}/`:
+
+| File | Description |
+|---|---|
+| `items.json` | Collected data in JSON format |
+| `items.csv` | Collected data in CSV format |
+| `README.md` | Collection metadata and schema documentation |
+
+## Viewing run history
+
+Use `/history` inside the CLI to browse past runs. Each entry shows the run ID, prompt, timestamp, and estimated cost. Select a run to see full details including token counts.
+
+Use `/messages <run_id>` to view the detailed LLM conversation log for any run:
+
+```bash
+/messages abc123
+```
+
+This reads from `~/.reverse-api/runs/messages/{run_id}.jsonl`.

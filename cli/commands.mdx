@@ -1,0 +1,429 @@
+---
+title: "Commands"
+description: "Complete reference for every reverse-api-engineer CLI command and flag."
+---
+
+## Overview
+
+`reverse-api-engineer` is the main entry point. Running it without a subcommand launches the interactive REPL. Use subcommands to invoke specific modes directly from your terminal.
+
+<Tip>
+Press **Shift+Tab** inside the interactive REPL to cycle through modes: `agent` → `manual` → `engineer` → `collector`.
+</Tip>
+
+## Interactive REPL
+
+```bash
+reverse-api-engineer
+```
+
+Launches the interactive prompt with mode cycling. The current mode is shown in the prompt prefix, for example `[agent] >` or `[manual] >`.
+
+### Modes
+
+| Mode | Description |
+|------|-------------|
+| `agent` | Autonomous AI agent navigates the browser and captures traffic (default) |
+| `manual` | You control the browser; AI generates the API client after you close it |
+| `engineer` | Re-run AI generation on a previously captured run |
+| `collector` | AI-powered web data collection with JSON/CSV output |
+
+### Keyboard shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Shift+Tab` | Cycle to the next mode |
+| `Ctrl+R` | Fill the prompt with a random task suggestion (agent mode only) |
+| `→` (Right arrow) | Accept the current autocomplete suggestion |
+| `Ctrl+D` / `Ctrl+C` | Exit the REPL |
+
+---
+
+## Subcommands
+
+<AccordionGroup>
+
+<Accordion title="manual — manual browser capture">
+
+Opens a Playwright browser for you to interact with manually. After you close the browser, AI analyzes the captured traffic and generates an API client.
+
+```bash
+reverse-api-engineer manual [OPTIONS]
+```
+
+### Options
+
+<ParamField path="--prompt" type="string">
+  Task description. Passed to the AI to guide code generation. If omitted, you are prompted interactively.
+</ParamField>
+
+<ParamField path="-p" type="string">
+  Shorthand for `--prompt`.
+</ParamField>
+
+<ParamField path="--url" type="string">
+  Starting URL to open in the browser. Leave blank to start on an empty tab.
+</ParamField>
+
+<ParamField path="-u" type="string">
+  Shorthand for `--url`.
+</ParamField>
+
+<ParamField path="--reverse-engineer / --no-engineer" type="boolean" default="true">
+  Enable or disable AI code generation after capture. Disable with `--no-engineer` to record traffic only.
+</ParamField>
+
+<ParamField path="--model" type="string">
+  Model to use for generation. Choices: `claude-sonnet-4-6`, `claude-opus-4-6`, `claude-haiku-4-5`.
+</ParamField>
+
+<ParamField path="-m" type="string">
+  Shorthand for `--model`.
+</ParamField>
+
+<ParamField path="--output-dir" type="string">
+  Custom directory for run artifacts. Defaults to `~/.reverse-api/runs`.
+</ParamField>
+
+<ParamField path="-o" type="string">
+  Shorthand for `--output-dir`.
+</ParamField>
+
+### Examples
+
+<CodeGroup>
+
+```bash interactive prompt
+reverse-api-engineer manual
+# You are prompted for task and URL
+```
+
+```bash with flags
+reverse-api-engineer manual \
+  --prompt "capture job listings" \
+  --url "https://jobs.apple.com" \
+  --model claude-sonnet-4-6
+```
+
+```bash record only
+reverse-api-engineer manual \
+  --prompt "browse checkout flow" \
+  --no-engineer
+```
+
+</CodeGroup>
+
+### Output
+
+- `~/.reverse-api/runs/scripts/{run_id}/` — permanent generated scripts
+- `./scripts/{descriptive_name}/` — local copy with a readable name
+
+</Accordion>
+
+<Accordion title="agent — autonomous agent mode">
+
+Runs an AI agent that navigates the browser autonomously based on your task description. The agent captures traffic and optionally runs reverse engineering.
+
+```bash
+reverse-api-engineer agent [OPTIONS]
+```
+
+### Options
+
+<ParamField path="--prompt" type="string">
+  Instruction for the autonomous agent. If omitted, you are prompted interactively.
+</ParamField>
+
+<ParamField path="-p" type="string">
+  Shorthand for `--prompt`.
+</ParamField>
+
+<ParamField path="--url" type="string">
+  Optional starting URL. The agent navigates from this URL; omit to let the agent start on its own.
+</ParamField>
+
+<ParamField path="-u" type="string">
+  Shorthand for `--url`.
+</ParamField>
+
+<ParamField path="--reverse-engineer / --no-engineer" type="boolean" default="true">
+  Run reverse engineering after the agent finishes capturing.
+</ParamField>
+
+<ParamField path="--model" type="string">
+  Model for reverse engineering. Choices: `claude-sonnet-4-6`, `claude-opus-4-6`, `claude-haiku-4-5`.
+</ParamField>
+
+<ParamField path="-m" type="string">
+  Shorthand for `--model`.
+</ParamField>
+
+<ParamField path="--output-dir" type="string">
+  Custom directory for run artifacts.
+</ParamField>
+
+<ParamField path="-o" type="string">
+  Shorthand for `--output-dir`.
+</ParamField>
+
+### Examples
+
+<CodeGroup>
+
+```bash basic
+reverse-api-engineer agent \
+  --prompt "Go to github.com/trending and capture the top repos API"
+```
+
+```bash with starting URL
+reverse-api-engineer agent \
+  --prompt "search for mechanical keyboards" \
+  --url "https://amazon.com"
+```
+
+```bash record only
+reverse-api-engineer agent \
+  --prompt "browse checkout" \
+  --no-engineer
+```
+
+</CodeGroup>
+
+<Note>
+Agent mode requires the `[agent]` extra and a specific browser-use git commit for HAR recording support. See the [installation guide](/installation) for details. The `auto` agent provider (default) works without any extras.
+</Note>
+
+</Accordion>
+
+<Accordion title="engineer — re-engineer a previous capture">
+
+Re-runs AI code generation against a previously recorded HAR file without opening a browser.
+
+```bash
+reverse-api-engineer engineer <RUN_ID> [OPTIONS]
+```
+
+### Arguments
+
+<ParamField path="RUN_ID" type="string" required>
+  The run ID to re-engineer. Find run IDs with `reverse-api-engineer list` or `/history` in the REPL.
+</ParamField>
+
+### Options
+
+<ParamField path="--model" type="string">
+  Model to use. Choices: `claude-sonnet-4-6`, `claude-opus-4-6`, `claude-haiku-4-5`.
+</ParamField>
+
+<ParamField path="-m" type="string">
+  Shorthand for `--model`.
+</ParamField>
+
+<ParamField path="--output-dir" type="string">
+  Custom output directory for generated scripts.
+</ParamField>
+
+<ParamField path="-o" type="string">
+  Shorthand for `--output-dir`.
+</ParamField>
+
+### Examples
+
+<CodeGroup>
+
+```bash basic
+reverse-api-engineer engineer abc123def456
+```
+
+```bash with model
+reverse-api-engineer engineer abc123def456 --model claude-opus-4-6
+```
+
+</CodeGroup>
+
+</Accordion>
+
+<Accordion title="show — view run details">
+
+Displays detailed information about a specific run: prompt, model, mode, token usage, cost, artifact paths, and generated files.
+
+```bash
+reverse-api-engineer show [RUN_ID] [OPTIONS]
+```
+
+### Arguments
+
+<ParamField path="RUN_ID" type="string">
+  Run ID to inspect. If omitted, shows the most recent run.
+</ParamField>
+
+### Options
+
+<ParamField path="--json" type="boolean">
+  Output as a JSON object instead of a formatted table.
+</ParamField>
+
+### Examples
+
+<CodeGroup>
+
+```bash show latest run
+reverse-api-engineer show
+```
+
+```bash show specific run
+reverse-api-engineer show abc123def456
+```
+
+```bash JSON output
+reverse-api-engineer show abc123def456 --json
+```
+
+</CodeGroup>
+
+### Fields shown
+
+| Field | Description |
+|-------|-------------|
+| `prompt` | The original task description |
+| `timestamp` | When the run was created |
+| `model` | Model used for generation |
+| `mode` | Capture mode (agent / manual / engineer / collector) |
+| `sdk` | SDK used (claude / opencode / copilot) |
+| `cost` | Estimated cost in USD |
+| `input_tokens` | Input tokens consumed |
+| `output_tokens` | Output tokens generated |
+| `har_dir` | Path to the captured HAR file |
+| `har_entries` | Number of network requests captured |
+| `script_dir` | Path to generated scripts |
+| `files` | Generated file names |
+
+</Accordion>
+
+<Accordion title="list — list all runs">
+
+Lists all recorded runs with optional filters. Useful for finding run IDs to pass to `engineer` or `show`.
+
+```bash
+reverse-api-engineer list [OPTIONS]
+```
+
+### Options
+
+<ParamField path="--json" type="boolean">
+  Output as a flat JSON array.
+</ParamField>
+
+<ParamField path="--full" type="boolean">
+  Show all columns including model, SDK, cost, and script directory. Default shows a compact view.
+</ParamField>
+
+<ParamField path="--limit" type="number">
+  Maximum number of results to return.
+</ParamField>
+
+<ParamField path="-n" type="number">
+  Shorthand for `--limit`.
+</ParamField>
+
+<ParamField path="--mode" type="string">
+  Filter by mode. Options: `auto`, `manual`, `agent`, `engineer`, `collector`.
+</ParamField>
+
+<ParamField path="-m" type="string">
+  Shorthand for `--mode`.
+</ParamField>
+
+<ParamField path="--model" type="string">
+  Filter by model name (case-insensitive substring match).
+</ParamField>
+
+<ParamField path="--search" type="string">
+  Case-insensitive substring search against run prompts.
+</ParamField>
+
+<ParamField path="-s" type="string">
+  Shorthand for `--search`.
+</ParamField>
+
+### Examples
+
+<CodeGroup>
+
+```bash list all
+reverse-api-engineer list
+```
+
+```bash full view
+reverse-api-engineer list --full
+```
+
+```bash filter by mode
+reverse-api-engineer list --mode agent
+```
+
+```bash search by prompt
+reverse-api-engineer list --search "github"
+```
+
+```bash JSON output
+reverse-api-engineer list --json --limit 10
+```
+
+</CodeGroup>
+
+</Accordion>
+
+<Accordion title="install-host — install Chrome native messaging host">
+
+Installs the native messaging host that connects the Chrome extension to the CLI.
+
+```bash
+reverse-api-engineer install-host --extension-id <ID>
+```
+
+### Options
+
+<ParamField path="--extension-id" type="string" required>
+  The Chrome extension ID. Find it in `chrome://extensions/` under the extension name (32-character string).
+</ParamField>
+
+### Example
+
+```bash
+reverse-api-engineer install-host --extension-id abcdefghijklmnopqrstuvwxyz123456
+```
+
+<Note>
+See the [Chrome extension guide](/integrations/chrome-extension) for the full setup steps including how to build and load the extension.
+</Note>
+
+</Accordion>
+
+<Accordion title="uninstall-host — remove Chrome native messaging host">
+
+Removes the native messaging host installed by `install-host`.
+
+```bash
+reverse-api-engineer uninstall-host
+```
+
+</Accordion>
+
+</AccordionGroup>
+
+---
+
+## Global options
+
+These options work on the top-level `reverse-api-engineer` command:
+
+| Flag | Description |
+|------|-------------|
+| `--version` | Print the installed version and exit |
+| `-h`, `--help` | Show help text for any command |
+
+```bash
+reverse-api-engineer --version
+reverse-api-engineer manual --help
+```

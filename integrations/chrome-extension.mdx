@@ -1,0 +1,191 @@
+---
+title: Chrome extension
+description: Capture browser traffic and interact with the reverse engineering agent directly from Chrome using the Reverse API Engineer side panel extension.
+---
+
+<Warning>
+  The Chrome extension is a work in progress. Features and APIs may change between releases.
+</Warning>
+
+The Chrome extension provides a browser-native alternative to the Playwright-based capture workflow. Instead of launching a separate browser, you capture traffic directly from your existing Chrome session and interact with the AI agent through a built-in side panel.
+
+<CardGroup cols={3}>
+  <Card title="HAR capture" icon="network">
+    Records network traffic using Chrome's Debugger API — no separate browser window needed.
+  </Card>
+  <Card title="Side panel UI" icon="panel-right">
+    A React-based side panel for managing capture sessions, viewing traffic, and chatting with the agent.
+  </Card>
+  <Card title="Native host integration" icon="plug">
+    Communicates with the `reverse-api-engineer` CLI via Chrome's native messaging protocol.
+  </Card>
+</CardGroup>
+
+## Prerequisites
+
+- Node.js and npm
+- Google Chrome browser
+- `reverse-api-engineer` CLI installed:
+  ```bash
+  uv tool install reverse-api-engineer
+  ```
+- Claude Code CLI installed:
+  ```bash
+  npm install -g @anthropic-ai/claude-code
+  ```
+
+## Installation
+
+<Steps>
+  <Step title="Build the extension">
+    ```bash
+    cd chrome-extension
+    npm install
+    npm run build
+    ```
+
+    This produces a production build in the `chrome-extension/dist` directory.
+  </Step>
+
+  <Step title="Load the extension in Chrome">
+    1. Open Chrome and navigate to `chrome://extensions/`
+    2. Enable **Developer mode** using the toggle in the top-right corner
+    3. Click **Load unpacked** and select the `chrome-extension/dist` directory
+    4. Copy the **extension ID** — the 32-character string shown below the extension name. You will need it in the next step.
+  </Step>
+
+  <Step title="Install the native host">
+    The native host connects the Chrome extension to the `reverse-api-engineer` CLI using Chrome's native messaging protocol:
+
+    ```bash
+    reverse-api-engineer install-host --extension-id YOUR_EXTENSION_ID
+    ```
+
+    Replace `YOUR_EXTENSION_ID` with the ID you copied from `chrome://extensions/`.
+  </Step>
+
+  <Step title="macOS: approve Claude Code through Gatekeeper">
+    On macOS, run this once to allow Claude Code to execute:
+
+    ```bash
+    claude --version
+    ```
+
+    If macOS shows a security popup, go to **System Settings > Privacy & Security** and click **Allow Anyway**, then run the command again.
+
+    <Note>
+      This step is only required on macOS. Skip it on Linux or Windows.
+    </Note>
+  </Step>
+</Steps>
+
+## Features
+
+### HAR capture
+
+The extension uses Chrome's Debugger API (`chrome.debugger`) to intercept network requests on the active tab. When you start a capture session, a `REC` badge appears on the extension icon.
+
+- Captures XHR, Fetch, and WebSocket traffic
+- Appends to an existing session on resume — does not overwrite previous captures
+- Stores captured requests per session in Chrome's extension storage
+- Prevents capture on restricted pages (`chrome://`, `chrome-extension://`, `about:`, `data:`, `file:`)
+
+### Side panel UI
+
+Click the extension icon to open the side panel. From here you can:
+
+- Start and stop HAR capture sessions
+- View a live traffic list with expandable request details
+- Clear captured traffic for the current session
+- Create, rename, switch between, and delete sessions
+- Chat with the AI agent about captured traffic
+- Record Playwright codegen scripts from your interactions
+
+**Session management**
+
+Each capture is isolated in its own session, identified by a unique run ID. You can maintain multiple sessions for different sites or workflows and switch between them without losing captured data. Session data persists across panel reloads.
+
+### Playwright codegen recording
+
+In codegen mode, the extension records your browser interactions (clicks, form fills, navigations, scrolls) and generates a Playwright Python script:
+
+```python
+from playwright.sync_api import sync_playwright
+
+def run():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=False)
+        page = browser.new_page()
+        page.goto("https://example.com")
+        page.click("[data-testid=\"search-button\"]")
+        page.fill("[name=\"q\"]", "reverse api engineer")
+        browser.close()
+
+if __name__ == "__main__":
+    run()
+```
+
+Scripts are saved via the native host to `./scripts/{domain}/` locally and archived under `~/.reverse-api/runs/scripts/{run_id}/`.
+
+### Native host integration
+
+The extension communicates with the `reverse-api-engineer` CLI over Chrome's native messaging protocol:
+
+1. The extension sends messages (HAR data, chat requests) to the background service worker
+2. The service worker forwards them to the native host process via `chrome.runtime.connectNative`
+3. The native host invokes the CLI to save HAR files, run the AI engineer, and stream progress events back
+4. Results and agent events are broadcast to the side panel
+
+The side panel displays the connection status. If the native host is not connected, capture still works but AI generation and file saving are unavailable until the host is installed and the extension is reloaded.
+
+## Development
+
+### Watch mode
+
+For active development, use watch mode to auto-rebuild on file changes:
+
+```bash
+npm run dev
+```
+
+After each rebuild, go to `chrome://extensions/` and click the reload button on the extension card to pick up the changes.
+
+### Production build
+
+```bash
+npm run build
+```
+
+### Type checking
+
+```bash
+npm run typecheck
+```
+
+### Architecture
+
+```
+chrome-extension/src/
+├── background/
+│   └── service-worker.ts    # Message routing, capture lifecycle, session management
+├── sidepanel/
+│   ├── main.tsx             # Side panel entry point
+│   └── side-panel.tsx       # Main panel component
+├── content/                 # Content scripts (codegen recording)
+├── shared/
+│   ├── capture.ts           # Chrome Debugger API HAR capture
+│   ├── native-host.ts       # Native messaging client
+│   ├── storage.ts           # Chrome extension storage helpers
+│   └── types.ts             # Shared TypeScript types
+└── components/              # React UI components
+```
+
+**Tech stack:** TypeScript, React 18, Tailwind CSS, Vite
+
+## Changelog highlights
+
+Notable improvements to the Chrome extension across releases:
+
+- **v0.4.1** — Multi-session support, codegen recording, side panel UX overhaul, session isolation fixes, message persistence across reloads, traffic list with expandable request details, bundle size reduced from 1112 KB to 436 KB
+- **v0.4.1** — Restricted page detection with user feedback, ANSI escape code stripping in terminal output
+- **v0.3.1** — Initial beta release: HAR capture via Chrome extension as an alternative to Playwright browser

@@ -1,0 +1,312 @@
+---
+title: Claude Code plugin
+description: Install and use the Reverse API Engineer plugin for Claude Code to reverse engineer APIs directly from your AI coding sessions.
+---
+
+The Reverse API Engineer plugin integrates directly into [Claude Code](https://claude.ai/claude-code), adding slash commands and a proactive agent that help you capture browser traffic and generate production-ready API clients without leaving your editor.
+
+<CardGroup cols={2}>
+  <Card title="Manual capture" icon="mouse-pointer">
+    Control the browser yourself. Navigate to trigger the API calls you need, then close the browser to generate the client.
+  </Card>
+  <Card title="Agent mode" icon="robot">
+    Fully autonomous browsing. The agent navigates, captures traffic, and generates the API client with no manual steps.
+  </Card>
+  <Card title="Re-engineer" icon="refresh-cw">
+    Re-run AI generation on any previous HAR capture. Improve the output or extract additional endpoints without recapturing.
+  </Card>
+  <Card title="Proactive agent" icon="zap">
+    Automatically activates when you mention API reverse engineering tasks in conversation.
+  </Card>
+</CardGroup>
+
+## Prerequisites
+
+- **Node.js** — required for running the MCP server
+- **Playwright MCP** (`rae-playwright-mcp`) — installed automatically when the plugin loads
+
+The MCP server is managed by the plugin. You do not need to install or configure it manually.
+
+## Installation
+
+### From the marketplace
+
+<Steps>
+  <Step title="Open Claude Code">
+    Launch the Claude Code REPL in your terminal:
+
+    ```bash
+    claude
+    ```
+  </Step>
+  <Step title="Add the plugin source">
+    ```
+    /plugin marketplace add kalil0321/reverse-api-engineer
+    ```
+  </Step>
+  <Step title="Install the plugin">
+    ```
+    /plugin install reverse-api-engineer@reverse-api-engineer
+    ```
+  </Step>
+</Steps>
+
+### Local development installation
+
+If you have cloned the repository locally and want to work with your own copy of the plugin:
+
+<Steps>
+  <Step title="Open Claude Code from the repository root">
+    ```bash
+    claude
+    ```
+  </Step>
+  <Step title="Add the local directory as a marketplace source">
+    ```
+    /plugin marketplace add .
+    ```
+  </Step>
+  <Step title="Install the plugin">
+    ```
+    /plugin install reverse-api-engineer@reverse-api-engineer
+    ```
+  </Step>
+</Steps>
+
+## Plugin commands
+
+All commands are namespaced under `reverse-api-engineer`.
+
+### `/reverse-api-engineer:manual [task] [url]`
+
+Launches a browser with HAR recording enabled. You navigate manually to trigger the API calls you need, then close the browser. Claude analyzes the captured traffic and generates the Python API client.
+
+**Arguments**
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `task` | No | What to reverse engineer, e.g. `"fetch Apple jobs"` |
+| `url` | No | Starting URL. Omit to open a blank browser. |
+
+If you omit arguments, the command prompts you interactively.
+
+**Workflow**
+
+<Steps>
+  <Step title="Browser opens with HAR recording">
+    A Playwright browser launches. All network traffic is recorded to `~/.reverse-api/runs/har/{run_id}/recording.har`.
+  </Step>
+  <Step title="Navigate and interact">
+    Browse the site, log in, trigger searches, paginate through listings — anything that exercises the API endpoints you need.
+  </Step>
+  <Step title="Close the browser">
+    When you are done, close the browser. The HAR file saves automatically.
+  </Step>
+  <Step title="AI generates the API client">
+    Claude filters the HAR, analyzes endpoints, generates `api_client.py`, validates coverage (score ≥ 90/100), and writes a `README.md`.
+  </Step>
+</Steps>
+
+**Examples**
+
+```
+/reverse-api-engineer:manual "fetch all Apple jobs" https://jobs.apple.com
+/reverse-api-engineer:manual "scrape product data"
+/reverse-api-engineer:manual
+```
+
+<Tip>
+  Log in during capture to record authentication patterns. Navigate through paginated results to capture query parameter patterns.
+</Tip>
+
+---
+
+### `/reverse-api-engineer:engineer <run_id|har_path>`
+
+Re-runs AI generation on a previous capture. The original HAR file is never modified — each regeneration gets its own run ID.
+
+**Arguments**
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `run_id` or `har_path` | Yes | A previous run ID or a direct path to a `.har` file |
+
+**Examples**
+
+```
+/reverse-api-engineer:engineer abc-123-def
+/reverse-api-engineer:engineer ~/.reverse-api/runs/har/xyz-789/recording.har
+/reverse-api-engineer:engineer ./captures/my-traffic.har
+```
+
+**Use cases**
+
+- Regenerate the client with a different focus (e.g., authentication endpoints only)
+- Extract additional endpoints from a capture you already have
+- Improve or rewrite a previous client without re-capturing traffic
+- Update documentation or add better type hints
+
+---
+
+### `/reverse-api-engineer:agent [task] [url]`
+
+Fully autonomous browser navigation using Playwright MCP. The agent navigates the site, captures HAR traffic in real time, and generates the API client — no manual interaction required.
+
+**Arguments**
+
+| Argument | Required | Description |
+| --- | --- | --- |
+| `task` | Yes | What the agent should do, e.g. `"find all job listings"` |
+| `url` | No | Starting URL. The agent can search for the right page if omitted. |
+
+**Examples**
+
+```
+/reverse-api-engineer:agent "find all job listings" https://jobs.apple.com
+/reverse-api-engineer:agent "search for products"
+```
+
+**Agent workflow**
+
+<Steps>
+  <Step title="Browser launches with HAR recording">
+    Playwright MCP opens a browser with `record_har` enabled.
+  </Step>
+  <Step title="Autonomous navigation">
+    The agent uses `playwright_navigate`, `playwright_click`, `playwright_fill`, and other MCP tools to complete the task. It checks `playwright_get_har_entries()` in real time to monitor captured API calls and adapt its navigation strategy.
+  </Step>
+  <Step title="HAR captured and analyzed">
+    Once the task is complete, Claude filters and analyzes the captured traffic.
+  </Step>
+  <Step title="API client generated">
+    `api_client.py` and `README.md` are written to `./scripts/{task_name}/`.
+  </Step>
+</Steps>
+
+<Note>
+  Agent mode works best for straightforward, automatable tasks. For sites with CAPTCHA, complex multi-step authentication, or heavy bot detection, use manual mode instead.
+</Note>
+
+---
+
+### `/reverse-api-engineer:capture [url]`
+
+Record-only mode. Launches a browser with HAR recording but skips code generation. Use this to capture traffic first and run `/reverse-api-engineer:engineer` later.
+
+```
+/reverse-api-engineer:capture https://api.example.com
+```
+
+## Proactive agent
+
+The plugin registers an `api-reverse-engineer` agent that activates automatically when you use phrases like:
+
+- `"reverse engineer an API"`
+- `"create API client for..."`
+- `"automate interactions with..."`
+- `"scrape data from..."`
+- `"HAR file analysis"`
+- `"capture traffic"`, `"authentication flow"`
+
+**Example**
+
+```
+You: "I need to automate fetching data from this website's API"
+
+Agent: "I can help reverse engineer that API! I'll launch a browser
+        with HAR recording..."
+```
+
+The agent assesses your situation, recommends the right mode (manual, engineer, or autonomous agent), and guides you through the entire process.
+
+## The `reverse-engineering-api` skill
+
+The plugin includes a `reverse-engineering-api` skill that activates on API reverse engineering tasks. It provides Claude with detailed guidance for every phase of the workflow:
+
+| Phase | What the skill covers |
+| --- | --- |
+| Browser capture | HAR recording configuration, run ID generation, path setup |
+| HAR analysis | `har_filter.py` — removes static assets, analytics, CDN noise (reduces HAR by 80–90%) |
+| Endpoint extraction | `har_analyze.py` — extracts URL patterns, methods, authentication, pagination, schemas |
+| Code generation | Python client template with type hints, docstrings, error handling, session management |
+| Validation | `har_validate.py` — scores coverage (must reach ≥ 90/100 before finishing) |
+| Authentication | Pattern recognition for Bearer tokens, API keys, OAuth2, session cookies |
+
+The skill is loaded automatically — you do not need to invoke it manually.
+
+## Output structure
+
+### Generated API clients
+
+Scripts are saved in two locations:
+
+```
+./scripts/{task_name}/         # Local copy with a readable name
+├── api_client.py              # Main API client class
+└── README.md                  # Usage documentation
+
+~/.reverse-api/runs/scripts/{run_id}/   # Permanent archive
+```
+
+### HAR files
+
+```
+~/.reverse-api/runs/har/{run_id}/recording.har
+```
+
+### Run history
+
+```
+~/.reverse-api/history.json
+```
+
+## Generated code quality
+
+All generated API clients include:
+
+- Type hints for all parameters and return values
+- Docstrings for all public methods
+- Error handling with `requests.exceptions.RequestException`
+- `logging` for debugging
+- Session management for connection reuse
+- Authentication handling (Bearer tokens, API keys, OAuth, cookies)
+- Production-ready code structure
+
+## Examples
+
+### Example 1: Job board API
+
+```
+You: /reverse-api-engineer:manual "fetch all Apple jobs" https://jobs.apple.com
+
+[Browser opens]
+1. Navigate to jobs.apple.com
+2. Search for jobs, browse listings
+3. Close browser
+
+[AI generates]
+Scripts saved to: ./scripts/apple_jobs_api/
+- api_client.py  (search_jobs(), get_job_details() methods)
+- README.md      (usage documentation)
+```
+
+### Example 2: Re-engineer an existing capture
+
+```
+You: /reverse-api-engineer:engineer ~/.reverse-api/runs/abc-123/har/recording.har
+
+[AI analyzes HAR]
+Found endpoints:
+- GET /api/v1/jobs/search
+- GET /api/v1/jobs/{id}
+
+[AI generates improved client]
+Scripts saved to: ./scripts/jobs_api/
+```
+
+## Tips
+
+- **Manual mode** gives the best results when you need precise control over which interactions are captured, or when the site has bot detection.
+- **Agent mode** is ideal for simple, predictable navigation tasks — job boards, product catalogs, public search APIs.
+- **Engineer mode** is the fastest iteration loop: capture once, re-engineer as many times as needed.
+- Capture multiple user flows (browse, search, detail pages, auth) to discover all endpoints in a single run.

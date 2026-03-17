@@ -1,0 +1,159 @@
+---
+title: Installation
+description: Install Reverse API Engineer and configure your environment to start capturing browser traffic and generating Python API clients.
+---
+
+<Steps>
+  <Step title="Check prerequisites">
+    Before installing, confirm your environment meets the following requirements:
+
+    - **Python 3.11 or later** — the package declares `requires-python = ">=3.11"`
+    - **Claude Code or OpenCode** — used to run the reverse engineering pipeline
+    - **An Anthropic API key** — required for the default Claude SDK
+
+    Verify your Python version:
+
+    ```bash
+    python --version
+    ```
+
+    <Note>
+      Python 3.11, 3.12, and 3.13 are all supported. Python 3.10 and below will not work.
+    </Note>
+  </Step>
+
+  <Step title="Install the package">
+    Choose your preferred installation method.
+
+    <Tabs>
+      <Tab title="Standard install">
+        <CodeGroup>
+
+        ```bash uv (recommended)
+        uv tool install reverse-api-engineer
+        ```
+
+        ```bash pip
+        pip install reverse-api-engineer
+        ```
+
+        </CodeGroup>
+      </Tab>
+      <Tab title="With agent mode">
+        The `[agent]` extra adds Stagehand support for autonomous browser interaction. `browser-use` must be installed separately from a specific git commit because it is not on PyPI in a compatible version.
+
+        <CodeGroup>
+
+        ```bash uv (recommended)
+        uv tool install 'reverse-api-engineer[agent]' \
+          --with 'browser-use @ git+https://github.com/browser-use/browser-use.git@49a345fb19e9f12befc5cc1658e0033873892455'
+        ```
+
+        ```bash pip
+        pip install 'reverse-api-engineer[agent]'
+        pip install git+https://github.com/browser-use/browser-use.git@49a345fb19e9f12befc5cc1658e0033873892455
+        ```
+
+        </CodeGroup>
+
+        <Warning>
+          You must install `browser-use` from the pinned git commit shown above. The PyPI release does not include the HAR recording support that Reverse API Engineer requires.
+        </Warning>
+      </Tab>
+      <Tab title="With pricing extras">
+        By default, Reverse API Engineer includes built-in pricing data for Claude 4.6 and Gemini 3 models. Install the `[pricing]` extra to enable extended coverage for 100+ additional models (OpenAI GPT, Mistral, DeepSeek, and more) via LiteLLM.
+
+        <CodeGroup>
+
+        ```bash uv
+        uv tool install 'reverse-api-engineer[pricing]'
+        ```
+
+        ```bash pip
+        pip install 'reverse-api-engineer[pricing]'
+        ```
+
+        </CodeGroup>
+
+        <Note>
+          Cost tracking works without this extra. The pricing system uses a 3-tier fallback: built-in prices → LiteLLM (if installed) → Claude Sonnet 4.6 pricing as a default.
+        </Note>
+      </Tab>
+    </Tabs>
+  </Step>
+
+  <Step title="Install Playwright browsers">
+    Reverse API Engineer uses Playwright for browser automation and HAR capture. After installing the package, install the Chromium browser:
+
+    ```bash
+    playwright install chromium
+    ```
+
+    <Tip>
+      You only need Chromium. Installing all browsers is unnecessary and takes significantly more disk space.
+    </Tip>
+  </Step>
+
+  <Step title="Set API keys">
+    Set the required environment variables for the models and agent providers you intend to use.
+
+    ```bash
+    # Required for the default Claude SDK
+    export ANTHROPIC_API_KEY="your-api-key"
+
+    # Required if using browser-use with the Browser-Use LLM provider
+    export BROWSER_USE_API_KEY="your-api-key"
+
+    # Required if using OpenAI models (browser-use or stagehand)
+    export OPENAI_API_KEY="your-api-key"
+
+    # Required if using Google models with browser-use
+    export GOOGLE_API_KEY="your-api-key"
+    ```
+
+    For everyday use, add these to your shell profile (`~/.bashrc`, `~/.zshrc`, etc.).
+
+    The required keys depend on your chosen agent provider and model:
+
+    | Provider / Model | Required key |
+    |---|---|
+    | Default Claude SDK (`claude-sonnet-4-6`, etc.) | `ANTHROPIC_API_KEY` |
+    | browser-use with `bu-llm` | `BROWSER_USE_API_KEY` |
+    | browser-use with OpenAI models | `OPENAI_API_KEY` |
+    | browser-use with Google models | `GOOGLE_API_KEY` |
+    | Stagehand with OpenAI Computer Use | `OPENAI_API_KEY` |
+    | Stagehand with Anthropic models | `ANTHROPIC_API_KEY` |
+  </Step>
+
+  <Step title="Verify the installation">
+    Confirm the CLI is installed and working:
+
+    ```bash
+    reverse-api-engineer --version
+    ```
+
+    You should see the current version (`0.5.0` or later). To launch the interactive REPL and confirm everything is configured:
+
+    ```bash
+    reverse-api-engineer
+    ```
+
+    The CLI banner will appear with the current SDK and model shown. Press `/exit` to quit.
+  </Step>
+</Steps>
+
+## Optional extras summary
+
+| Extra | What it adds | When to use |
+|---|---|---|
+| `[agent]` | Stagehand support for autonomous browser automation | When you want to use stagehand or browser-use agent providers |
+| `[pricing]` | LiteLLM for extended model pricing coverage | When using models outside the built-in pricing database |
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Run your first capture and generate an API client in minutes.
+  </Card>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Customize models, agent providers, output language, and more.
+  </Card>
+</CardGroup>

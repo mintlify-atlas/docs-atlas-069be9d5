@@ -1,0 +1,147 @@
+---
+title: Manual mode
+description: Capture browser traffic by hand and generate a production-ready API client with AI.
+---
+
+Manual mode runs the full pipeline: you browse a site while the tool records every network request, then Claude analyzes the traffic and writes a clean API client for you.
+
+<CardGroup cols={2}>
+  <Card title="Best for" icon="user">
+    Sites that need login, complex navigation, or multi-step flows that an agent can't handle reliably.
+  </Card>
+  <Card title="Output" icon="file-code">
+    `api_client.py`, `example_usage.py`, and `README.md` saved locally and in `~/.reverse-api/`.
+  </Card>
+</CardGroup>
+
+## Launch manual mode
+
+<Tabs>
+  <Tab title="Interactive CLI">
+    Start the interactive REPL and press **Shift+Tab** until the prompt prefix reads `[manual]`:
+
+    ```bash
+    reverse-api-engineer
+    ```
+
+    The mode indicator cycles through `agent → manual → engineer → collector` on each Shift+Tab press.
+  </Tab>
+  <Tab title="Direct subcommand">
+    Pass `manual` as a subcommand to skip the REPL entirely:
+
+    ```bash
+    reverse-api-engineer manual --prompt "Fetch Apple job listings" --url https://jobs.apple.com
+    ```
+
+    All flags are optional—omit them to be prompted interactively.
+
+    ```bash
+    # Flags
+    reverse-api-engineer manual \
+      --prompt "capture checkout API" \
+      --url https://example.com \
+      --model claude-sonnet-4-6 \
+      --output-dir /tmp/captures
+    ```
+  </Tab>
+</Tabs>
+
+## Workflow
+
+<Steps>
+  <Step title="Describe your goal">
+    Type a plain-English description of what you want to extract.
+
+    ```
+    [manual] > Fetch all Apple job listings from their careers page
+    ```
+
+    The description is used as the prompt for Claude during API generation, so be specific.
+  </Step>
+  <Step title="Enter a starting URL (optional)">
+    You are prompted for an optional starting URL. Press Enter to skip and start from a blank tab.
+
+    ```
+     > url (Enter for none): https://jobs.apple.com
+    ```
+  </Step>
+  <Step title="Interact with the browser">
+    A Chromium window opens with HAR recording active. Browse normally:
+
+    - Log in to the site if required.
+    - Navigate to the pages whose API calls you want to capture.
+    - Trigger the actions (search, paginate, filter) that expose the endpoints.
+
+    <Note>
+      The browser uses stealth mode to avoid bot-detection. It tries to launch your real Chrome installation first, falling back to Playwright's Chromium with anti-fingerprinting patches if Chrome is not found.
+    </Note>
+  </Step>
+  <Step title="Close the browser">
+    Close the browser window (or press Ctrl+C in the terminal) when you are done. The tool flushes the HAR file and prints the run ID:
+
+    ```
+    browser closed
+    ━ a3f7c2
+    har saved: 284,193 bytes
+    capture saved
+    ```
+  </Step>
+  <Step title="AI generates the API client">
+    Claude reads the captured traffic and writes the API client. Files appear in real time when `real_time_sync` is enabled (the default).
+
+    ```
+    decoding complete
+    > ~/.reverse-api/runs/scripts/a3f7c2/
+    > copied to ./scripts/apple_jobs_api/
+    ```
+  </Step>
+</Steps>
+
+## Output file locations
+
+Every run writes to two places:
+
+| Path | Purpose |
+|------|---------|
+| `~/.reverse-api/runs/scripts/{run_id}/` | Permanent storage, used by engineer mode for re-runs |
+| `./scripts/{descriptive_name}/` | Local working copy with a human-readable folder name |
+
+The descriptive name (e.g., `apple_jobs_api`) is generated from your prompt by Claude.
+
+A typical output directory contains:
+
+```
+scripts/apple_jobs_api/
+├── api_client.py       # Full API implementation with type hints and error handling
+├── example_usage.py    # Runnable usage examples
+└── README.md           # Endpoint documentation
+```
+
+## Tags
+
+Prefix your prompt with a tag to change the pipeline behavior.
+
+| Tag | Behavior |
+|-----|----------|
+| `@record-only` | Record the HAR file and stop—skip AI generation entirely. Use `@id` in engineer mode later. |
+| `@codegen` | Record your clicks and form fills, then generate a Playwright automation script instead of an API client. |
+
+```bash
+# Record only — engineer later
+[manual] > @record-only navigate checkout flow
+
+# Generate a Playwright script from recorded actions
+[manual] > @codegen navigate to google and search for openai
+```
+
+## Tips for good captures
+
+<Tip>
+  Capturing auth flows gives Claude the authentication headers it needs to generate working API clients. Log in during the capture session.
+</Tip>
+
+- **Multiple pages**: Navigate to all the pages that expose relevant endpoints. Each page visited adds entries to the HAR.
+- **Trigger pagination**: If the API is paginated, scroll down or click "next" to record the pagination parameters.
+- **Use filters**: Applying search filters and sort options reveals optional query parameters that Claude can document.
+- **Avoid unnecessary tabs**: HAR recording is most reliable on a single tab. Open new pages in the same tab via navigation rather than new windows.
+- **Session cookies**: Because the browser can use your real Chrome profile (read-only copy), existing sessions and cookies are available automatically.
