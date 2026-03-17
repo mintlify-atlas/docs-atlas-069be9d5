@@ -1,0 +1,103 @@
+{
+  "projectType": "cli-tool",
+  "projectName": "Reverse API Engineer",
+  "projectDescription": "A CLI tool that captures browser traffic via Playwright, uses Claude AI to reverse engineer web APIs, and automatically generates production-ready API clients.",
+  "theme": "palm",
+  "primaryColor": "#242b2c",
+  "lightColor": "#040404",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Usage Modes",
+            "pages": [
+              "modes/manual",
+              "modes/engineer",
+              "modes/agent",
+              "modes/collector"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/overview",
+              "configuration/models",
+              "configuration/agents",
+              "configuration/sdk",
+              "configuration/output"
+            ]
+          },
+          {
+            "group": "CLI Reference",
+            "pages": [
+              "cli/commands",
+              "cli/tags",
+              "cli/slash-commands"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "integrations/claude-code-plugin",
+              "integrations/chrome-extension"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/contributing",
+              "development/changelog"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Browser automation with Playwright stealth mode for realistic traffic capture",
+    "HAR (HTTP Archive) recording of all network traffic",
+    "AI-powered API client generation using Claude 4.6",
+    "Four modes: manual browser capture, engineer (re-process), autonomous agent, and collector",
+    "Multi-SDK support: Claude Agent SDK and OpenCode SDK",
+    "Tag system for fine-grained control (@record-only, @codegen, @docs, @id)",
+    "Cost tracking with token usage and cache support",
+    "Claude Code plugin and Chrome extension integrations",
+    "Multi-language output: Python, JavaScript, TypeScript",
+    "Session history with full message logs"
+  ],
+  "publicApiSurface": [
+    "reverse-api-engineer (CLI entrypoint)",
+    "reverse-api-engineer manual [--model MODEL]",
+    "reverse-api-engineer engineer <run_id>",
+    "reverse-api-engineer agent",
+    "reverse-api-engineer collector",
+    "reverse-api-engineer show <run_id>",
+    "reverse-api-engineer install-host --extension-id EXTENSION_ID",
+    "/settings (slash command)",
+    "/history (slash command)",
+    "/messages <run_id> (slash command)",
+    "/help (slash command)",
+    "/exit (slash command)",
+    "@record-only tag",
+    "@codegen tag",
+    "@docs tag",
+    "@id <run_id> tag",
+    "ConfigManager (config.py)",
+    "ManualBrowser (browser.py)",
+    "run_agent_browser() (browser.py)",
+    "BaseEngineer (base_engineer.py)",
+    "ClaudeEngineer (engineer.py)",
+    "OpenCodeEngineer (opencode_engineer.py)"
+  ]
+}
